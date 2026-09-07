@@ -1,0 +1,19 @@
+services:
+  kodes-server:
+    build:
+      context: ./kodes
+    container_name: kodes-server
+    ports:
+      - "9000:9000"
+    environment:
+      AAD_INTERNALS_PATH: /app/aadinternals/AADInternals.psd1
+      TOKEN_TACTICS_PATH: /app/tokentactics/TokenTactics.psd1
+      TOKEN_LOG_PATH: /app/database/TokenLog.log
+      KODES_DB_PATH: /app/database/kodes.db
+      KODES_SECRET_KEY_PATH: /app/config/secret.key
+      KODES_CRYPTO_KEY_PATH: /app/config/crypto.key
+    volumes:
+      - ./aadinternals:/app/aadinternals:ro
+      - ./tokentactics:/app/tokentactics:ro
+      - ./database:/app/database
+      - ./kodes/config:/app/config

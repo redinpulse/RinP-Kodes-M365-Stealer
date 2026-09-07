@@ -1,0 +1,25 @@
+# Secrets — provided by the mount, never baked into the image
+config/
+crypto.key
+
+# Database — provided by the volume
+database/
+
+# Logs
+*.log
+
+# Python
+__pycache__/
+*.pyc
+venv/
+.venv/
+*.egg-info/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+
+# VCS
+.git/
+.gitignore

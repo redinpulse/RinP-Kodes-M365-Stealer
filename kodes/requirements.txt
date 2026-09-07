@@ -1,0 +1,20 @@
+# Client dependencies
+pyngrok>=5.1.0,<6.0.0
+requests>=2.26.0,<3.0.0
+pyautogui>=0.9.53,<1.0.0
+pyperclip>=1.8.2,<2.0.0
+# pyautogui.locateOnScreen(confidence=...) OpenCV ister — Windows/macOS/Linux ortak
+opencv-python-headless>=4.5.0
+
+# Server dependencies
+Flask>=2.0.1,<3.0.0
+Flask-SQLAlchemy>=2.5.1,<3.0.0
+SQLAlchemy>=1.4.0,<2.0.0
+humanize>=4.0.0,<5.0.0
+PyJWT>=2.1.0,<3.0.0
+cryptography>=41.0.0
+
+# Development dependencies
+pytest>=6.2.5,<7.0.0
+black>=21.9b0,<22.0.0
+pylint>=2.11.1,<3.0.0

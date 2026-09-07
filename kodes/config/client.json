@@ -1,0 +1,8 @@
+{
+    "api_url": "http://localhost:9000",
+    "ngrok_token": "YOUR_NGROK_TOKEN",
+    "log_level": "INFO",
+    "auth_site": "https://microsoft.com/devicelogin",
+    "post_auth_url": null,
+    "health_check_interval": 30
+}

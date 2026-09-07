@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+
+{% block title %}Settings{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto space-y-6">
+
+    <div>
+        <h2 class="text-2xl font-bold text-gray-900">Global Settings</h2>
+        <p class="mt-1 text-sm text-gray-500">
+            These values are written to <code>server.json</code>. Campaign-level values
+            (target domain, auth site) take precedence in the campaign record; empty fields
+            are filled with these global values.
+        </p>
+    </div>
+
+    <div class="bg-white shadow-sm rounded-xl border border-gray-100 overflow-hidden">
+        <form method="post" action="{{ url_for('campaign.settings') }}" class="px-4 py-5 sm:px-6 space-y-5">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Global Target Domain</label>
+                <input type="text" name="domain" maxlength="255" value="{{ config.get('domain') or '' }}"
+                       class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm font-mono focus:ring-indigo-500 focus:border-indigo-500"
+                       placeholder="ornek.com">
+                <p class="mt-1 text-xs text-gray-400">
+                    Devices without a campaign-specific domain use this domain.
+                    Values outside DNS format are rejected.
+                </p>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Default Auth Site</label>
+                <input type="text" name="default_auth_site" maxlength="500" value="{{ config.get('default_auth_site') or '' }}"
+                       class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm font-mono focus:ring-indigo-500 focus:border-indigo-500"
+                       placeholder="https://microsoft.com/devicelogin">
+                <p class="mt-1 text-xs text-gray-400">Recommended default for new campaigns and config downloads.</p>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Default Post-Auth URL</label>
+                <input type="text" name="default_post_auth_url" maxlength="500" value="{{ config.get('default_post_auth_url') or '' }}"
+                       class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm font-mono focus:ring-indigo-500 focus:border-indigo-500"
+                       placeholder="If empty, no browser opens after authentication">
+            </div>
+
+            <div x-data="{ show: false }">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Ngrok Token (client default)</label>
+                <div class="flex gap-2">
+                    <input :type="show ? 'text' : 'password'" name="ngrok_token" maxlength="200" value="{{ config.get('ngrok_token') or '' }}"
+                           class="flex-grow border border-gray-300 rounded-md px-3 py-2 text-sm font-mono focus:ring-indigo-500 focus:border-indigo-500"
+                           placeholder="2xxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
+                    <button type="button" @click="show = !show"
+                            class="bg-gray-100 hover:bg-gray-200 text-gray-600 text-sm font-medium py-2 px-3 rounded-md shrink-0"
+                            x-text="show ? 'Gizle' : 'Show'">Show</button>
+                </div>
+                <p class="mt-1 text-xs text-gray-400">
+                    If set, it is embedded in the campaign's <code>client.json</code> download — the downloaded
+                    file can be used directly on the target. If empty, the downloaded config keeps
+                    <code>null</code> and the target's existing client.json value applies.
+                </p>
+            </div>
+
+            <div class="pt-4 border-t border-gray-200 flex justify-end">
+                <button type="submit"
+                        class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded-md text-sm transition-colors">Save</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="bg-blue-50 border border-blue-100 rounded-lg p-4 text-sm text-blue-800">
+        <p class="font-medium mb-1">Notlar</p>
+        <ul class="list-disc list-inside space-y-1 text-xs">
+            <li>The domain is validated with a DNS regex at save time; only validated values enter the PowerShell command line.</li>
+            <li>The file path can be overridden with the <code>KODES_SERVER_CONFIG</code> environment variable.</li>
+            <li>The config cache is reset automatically after saving — no service restart is needed for values to take effect.</li>
+        </ul>
+    </div>
+</div>
+{% endblock %}

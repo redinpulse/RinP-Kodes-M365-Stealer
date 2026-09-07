@@ -1,0 +1,160 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+        <div class="bg-white shadow-sm rounded-xl border border-gray-100 p-5">
+            <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Active Campaigns</p>
+            <p class="mt-1.5 text-3xl font-bold text-indigo-600">{{ stats.campaigns_active }}</p>
+            <p class="mt-1 text-xs text-gray-400">/ {{ stats.campaigns_total }} total</p>
+        </div>
+        <div class="bg-white shadow-sm rounded-xl border border-gray-100 p-5">
+            <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Device</p>
+            <p class="mt-1.5 text-3xl font-bold text-gray-900">{{ stats.devices_total }}</p>
+            <p class="mt-1 text-xs text-green-600 font-medium inline-flex items-center gap-1">
+                <span class="h-1.5 w-1.5 rounded-full bg-green-500"></span>{{ stats.devices_online }} online
+            </p>
+        </div>
+        <div class="bg-white shadow-sm rounded-xl border border-gray-100 p-5">
+            <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Tokens Acquired</p>
+            <p class="mt-1.5 text-3xl font-bold text-green-600">{{ stats.devices_authenticated }}</p>
+            <p class="mt-1 text-xs text-gray-400">access + refresh</p>
+        </div>
+        <div class="bg-white shadow-sm rounded-xl border border-gray-100 p-5">
+            <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Total Targets</p>
+            <p class="mt-1.5 text-3xl font-bold text-gray-900">{{ stats.targets_total }}</p>
+            <p class="mt-1 text-xs text-gray-400">all campaigns</p>
+        </div>
+        <div class="bg-white shadow-sm rounded-xl border border-gray-100 p-5 col-span-2 md:col-span-1">
+            <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Quick Action</p>
+            <a href="{{ url_for('campaign.list_campaigns', new=1) }}"
+               class="mt-2.5 inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold py-2 px-3.5 rounded-lg transition-colors shadow-sm shadow-indigo-600/20">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                </svg>
+                New Campaign
+            </a>
+        </div>
+    </div>
+
+    <div class="bg-white shadow-sm rounded-xl border border-gray-100 overflow-hidden">
+        <div class="px-4 py-5 sm:px-6 border-b border-gray-200 flex items-center justify-between">
+            <div>
+                <h2 class="text-lg leading-6 font-medium text-gray-900">Device Status</h2>
+                <p class="mt-1 text-sm text-gray-500">Connected devices, identity and token status — click for details.</p>
+            </div>
+            <a href="{{ url_for('web.list_devices') }}" class="text-sm font-medium text-indigo-600 hover:text-indigo-800">View all &rarr;</a>
+        </div>
+        {% if devices %}
+        <ul class="divide-y divide-gray-200">
+            {% for device in devices %}
+            <li>
+                <a href="{{ url_for('web.device_detail', hostname=device.hostname) }}" class="block hover:bg-gray-50 px-4 sm:px-6 py-3.5 transition-colors">
+                    <div class="flex items-center justify-between gap-4">
+                        <div class="flex items-center gap-3 min-w-0">
+                            <span class="h-2.5 w-2.5 rounded-full shrink-0 {{ 'bg-green-500' if device.is_online else 'bg-gray-300' }}"></span>
+                            <div class="min-w-0">
+                                <p class="text-sm font-medium text-gray-900 truncate">{{ device.hostname }}</p>
+                                <p class="text-xs text-gray-500 truncate">
+                                    {{ device.name or 'Not authenticated' }}{% if device.upn %} · {{ device.upn }}{% endif %}
+                                </p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2 shrink-0">
+                            {% if device.refresh_token %}
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Token</span>
+                            {% else %}
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-500">Bekliyor</span>
+                            {% endif %}
+                            {% if device.has_admin_permissions %}
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-700">Admin</span>
+                            {% endif %}
+                            {% if device.ngrok_url %}
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-700">Tunnel</span>
+                            {% endif %}
+                            <span class="text-xs text-gray-400 whitespace-nowrap hidden sm:inline">{{ device.last_seen|humanize }}</span>
+                        </div>
+                    </div>
+                </a>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <div class="px-6 py-8 text-center text-gray-500">
+            <p class="text-sm">No devices connected yet. Deploy the client using the configuration in the campaign detail page.</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        <div class="bg-white shadow-sm rounded-xl border border-gray-100 overflow-hidden">
+            <div class="px-4 py-5 sm:px-6 border-b border-gray-200 flex items-center justify-between">
+                <div>
+                    <h2 class="text-lg leading-6 font-medium text-gray-900">Recent Campaigns</h2>
+                    <p class="mt-1 text-sm text-gray-500">The 5 most recently created campaigns.</p>
+                </div>
+                <a href="{{ url_for('campaign.list_campaigns') }}" class="text-sm font-medium text-indigo-600 hover:text-indigo-800">View all &rarr;</a>
+            </div>
+            {% if recent_campaigns %}
+            <ul class="divide-y divide-gray-200">
+                {% for campaign in recent_campaigns %}
+                <li>
+                    <a href="{{ url_for('campaign.campaign_detail', campaign_id=campaign.id) }}" class="block hover:bg-gray-50 px-4 sm:px-6 py-4 transition-colors">
+                        <div class="flex items-center justify-between gap-4">
+                            <div class="min-w-0">
+                                <p class="text-sm font-medium text-gray-900 truncate">{{ campaign.name }}</p>
+                                <p class="text-xs text-gray-500 mt-0.5">
+                                    {{ campaign.targets|length }} targets · {{ campaign.devices|length }} devices
+                                    {% if campaign.target_domain %} · {{ campaign.target_domain }}{% endif %}
+                                </p>
+                            </div>
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full shrink-0
+                                {{ 'bg-yellow-100 text-yellow-800' if campaign.status == 'draft' else ('bg-green-100 text-green-800' if campaign.status == 'active' else 'bg-gray-100 text-gray-600') }}">
+                                {{ campaign.status_label }}
+                            </span>
+                        </div>
+                    </a>
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <div class="px-6 py-8 text-center text-gray-500">
+                <p class="text-sm">No campaigns yet. Create your first campaign to get started.</p>
+                <a href="{{ url_for('campaign.list_campaigns') }}" class="mt-3 inline-block text-sm font-medium text-indigo-600 hover:text-indigo-800">Create a campaign &rarr;</a>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="bg-white shadow-sm rounded-xl border border-gray-100 overflow-hidden">
+            <div class="px-4 py-5 sm:px-6 border-b border-gray-200 flex items-center justify-between">
+                <div>
+                    <h2 class="text-lg leading-6 font-medium text-gray-900">Recent Events</h2>
+                    <p class="mt-1 text-sm text-gray-500">Last 20 log entries.</p>
+                </div>
+                <a href="{{ url_for('campaign.logs') }}" class="text-sm font-medium text-indigo-600 hover:text-indigo-800">View all &rarr;</a>
+            </div>
+            {% if recent_logs %}
+            <ul class="divide-y divide-gray-200 max-h-96 overflow-y-auto">
+                {% for log in recent_logs %}
+                <li class="px-4 sm:px-6 py-3">
+                    <div class="flex items-start justify-between gap-4">
+                        <div class="min-w-0">
+                            <p class="text-xs font-semibold text-gray-700">{{ log.hostname }}</p>
+                            <p class="text-sm text-gray-600 break-words">{{ log.log_message }}</p>
+                        </div>
+                        <span class="text-xs text-gray-400 whitespace-nowrap shrink-0">{{ log.timestamp|humanize }}</span>
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <div class="px-6 py-8 text-center text-gray-500 text-sm">No log entries yet.</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

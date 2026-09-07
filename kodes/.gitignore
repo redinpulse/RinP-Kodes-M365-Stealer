@@ -1,0 +1,44 @@
+# Encryption keys (generated at runtime, never commit)
+crypto.key
+secret.key
+config/*.key
+
+# Build artifacts (keep the PyInstaller spec)
+build/*
+!build/client_build.spec
+dist/
+*.egg-info/
+*.egg
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+kodes_server.log
+kodes_client.log
+
+# Database
+instance/
+*.db
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# OS
+.DS_Store
+Thumbs.db

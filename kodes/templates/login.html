@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign In - Kodes M365 Red Team</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen flex items-center justify-center font-sans px-4 bg-gradient-to-br from-gray-900 via-indigo-950 to-gray-900">
+    <div class="w-full max-w-sm">
+        <div class="bg-white/95 backdrop-blur p-8 rounded-2xl shadow-2xl border border-white/10">
+            <div class="flex flex-col items-center mb-7">
+                <span class="inline-flex items-center justify-center h-14 w-14 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-700 text-white mb-4 shadow-lg shadow-indigo-900/30">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                </span>
+                <h1 class="text-xl font-bold text-gray-900">Kodes M365 Red Team</h1>
+                <p class="text-sm text-gray-500 mt-1">Enter your access key to continue</p>
+            </div>
+
+            {% if error %}
+            <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-5 text-sm flex items-start gap-2.5" role="alert">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <span>{{ error }}</span>
+            </div>
+            {% endif %}
+
+            <form method="POST" action="{{ url_for('auth.login') }}">
+                <div class="mb-6">
+                    <label class="block text-gray-600 text-xs font-semibold uppercase tracking-wider mb-2" for="access_token">
+                        Access Key
+                    </label>
+                    <input class="appearance-none border border-gray-300 rounded-lg w-full py-2.5 px-3.5 text-gray-900 leading-tight
+                                  focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 font-mono text-sm
+                                  transition-shadow"
+                           id="access_token" name="access_token" type="password"
+                           placeholder="••••••••••••••••••••••••" autofocus autocomplete="current-password">
+                </div>
+                <button class="bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-semibold py-2.5 px-4 w-full rounded-lg
+                               focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all shadow-sm shadow-indigo-600/20"
+                        type="submit">
+                    Sign In
+                </button>
+            </form>
+        </div>
+        <p class="text-center text-xs text-indigo-300/60 mt-5">&copy; 2026 Kodes</p>
+    </div>
+</body>
+</html>

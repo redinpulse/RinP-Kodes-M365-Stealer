@@ -1,0 +1,666 @@
+{% extends 'base.html' %}
+
+{% block title %}Devices{% endblock %}
+
+{% block styles %}
+<style>
+    .device-table {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    .dropdown-menu {
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+    [x-cloak] { display: none !important; }
+    @media (max-width: 640px) {
+        .action-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div x-data="deviceManager">
+
+    <div class="bg-white shadow-sm rounded-xl border border-gray-100 overflow-hidden">
+        <div class="px-4 py-5 sm:px-6 border-b border-gray-200">
+            <h2 class="text-lg leading-6 font-medium text-gray-900">Connected Devices</h2>
+            <p class="mt-1 max-w-2xl text-sm text-gray-500">All devices connected to Kodes and their campaign matches.</p>
+        </div>
+
+        <div>
+            {% if devices %}
+            <div class="device-table">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th scope="col" class="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Hostname
+                            </th>
+                            <th scope="col" class="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                User
+                            </th>
+                            <th scope="col" class="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Campaign
+                            </th>
+                            <th scope="col" class="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Status
+                            </th>
+                            <th scope="col" class="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Last Seen
+                            </th>
+                            <th scope="col" class="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Tunnel
+                            </th>
+                            <th scope="col" class="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Actions
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        {% for device in devices %}
+                        <tr class="hover:bg-gray-50 transition-colors duration-150">
+                            <td class="px-4 sm:px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                <a href="{{ url_for('web.device_detail', hostname=device.hostname) }}"
+                                   class="text-indigo-600 hover:text-indigo-800 hover:underline">{{ device.hostname }}</a>
+                            </td>
+                            <td class="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {% if device.name %}
+                                <div>{{ device.name }}</div>
+                                <div class="text-xs text-gray-400">{{ device.upn }}</div>
+                                {% else %}
+                                <span class="text-gray-400">Not authenticated</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {% if device.campaign %}
+                                <a href="{{ url_for('campaign.campaign_detail', campaign_id=device.campaign.id) }}"
+                                   class="text-indigo-600 hover:text-indigo-800 font-medium">{{ device.campaign.name }}</a>
+                                {% else %}
+                                <span class="text-gray-400">&mdash;</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-4 sm:px-6 py-4 whitespace-nowrap">
+                                {% if device.is_online %}
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                    Online
+                                </span>
+                                {% else %}
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                                    Offline
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td class="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {{ device.last_seen|humanize }}
+                            </td>
+                            <td class="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {% if device.ngrok_url %}
+                                <div x-data="{ copied: false, showTooltip: false }">
+                                    <div class="flex items-center relative">
+                                        <input type="text" readonly value="{{ device.ngrok_url }}"
+                                              class="text-xs bg-gray-100 p-1 rounded mr-2 w-24 sm:w-36 md:w-48 truncate border border-gray-200"
+                                              id="ngrok-{{ device.id }}"/>
+                                        <button @click="navigator.clipboard.writeText(document.getElementById('ngrok-{{ device.id }}').value); copied = true; showTooltip = true; setTimeout(() => {copied = false; showTooltip = false;}, 2000)"
+                                                class="text-blue-500 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-full p-1"
+                                                title="Copy">
+                                            <template x-if="!copied">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                                                </svg>
+                                            </template>
+                                            <template x-if="copied">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                                                </svg>
+                                            </template>
+                                        </button>
+                                        <div x-show="showTooltip" class="copy-tooltip fade-in">
+                                            Copied!
+                                        </div>
+                                    </div>
+                                </div>
+                                {% else %}
+                                <span class="text-gray-400">Yok</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-4 sm:px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                <div class="relative" data-hostname="{{ device.hostname }}">
+                                    <button @click="toggleDropdown('{{ device.hostname }}', $event)"
+                                            class="bg-blue-500 hover:bg-blue-600 text-white text-sm font-bold py-1 px-3 rounded flex items-center transition-colors duration-200">
+                                        Actions
+                                        <svg class="ml-1 h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                                        </svg>
+                                    </button>
+                                    <div x-show="actionDropdown['{{ device.hostname }}']"
+                                         @click.away="actionDropdown['{{ device.hostname }}'] = false"
+                                         x-cloak
+                                         :style="menuStyle"
+                                         class="fixed w-56 bg-white rounded-md shadow-lg z-40 dropdown-menu"
+                                         x-transition:enter="transition ease-out duration-100"
+                                         x-transition:enter-start="transform opacity-0 scale-95"
+                                         x-transition:enter-end="transform opacity-100 scale-100"
+                                         x-transition:leave="transition ease-in duration-75"
+                                         x-transition:leave-start="transform opacity-100 scale-100"
+                                         x-transition:leave-end="transform opacity-0 scale-95">
+                                        <div class="py-1 action-buttons rounded-md overflow-hidden" role="menu" aria-orientation="vertical">
+                                            <a href="{{ url_for('web.device_detail', hostname=device.hostname) }}"
+                                               class="block px-4 py-2 text-sm text-gray-900 hover:bg-gray-100 font-semibold w-full text-left transition-colors duration-150"
+                                               role="menuitem">
+                                                <div class="flex items-center">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-gray-600" viewBox="0 0 20 20" fill="currentColor">
+                                                        <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                                                        <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" />
+                                                    </svg>
+                                                    Device Details
+                                                </div>
+                                            </a>
+
+                                            <div class="border-t border-gray-100 my-1"></div>
+
+                                            {% if device.access_token %}
+                                            <button @click="viewTokenInfo('{{ device.hostname }}'); actionDropdown['{{ device.hostname }}'] = false"
+                                                    class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 w-full text-left transition-colors duration-150"
+                                                    role="menuitem">
+                                                <div class="flex items-center">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-blue-600" viewBox="0 0 20 20" fill="currentColor">
+                                                        <path fill-rule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                                                    </svg>
+                                                    Token Scopes
+                                                </div>
+                                            </button>
+                                            {% else %}
+                                            <span class="block px-4 py-2 text-sm text-gray-400 w-full text-left cursor-not-allowed">
+                                                <div class="flex items-center opacity-60">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                                                        <path fill-rule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                                                    </svg>
+                                                    Token Scopes
+                                                </div>
+                                                <span class="block pl-7 text-xs">Waiting for access token</span>
+                                            </span>
+                                            {% endif %}
+
+                                            {% if device.refresh_token %}
+                                            <button @click="generateTeamsToken('{{ device.hostname }}'); actionDropdown['{{ device.hostname }}'] = false"
+                                                    class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 w-full text-left transition-colors duration-150"
+                                                    role="menuitem">
+                                                <div class="flex items-center">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-indigo-600" viewBox="0 0 20 20" fill="currentColor">
+                                                        <path fill-rule="evenodd" d="M10 2a1 1 0 00-1 1v1.323l-3.954 1.582A1 1 0 004 6.944V16a1 1 0 001.5.866l3.83-2.129A1 1 0 0010 15.066V13h4a2 2 0 002-2V5a2 2 0 00-2-2h-4zm5 10h-5V4h5a1 1 0 011 1v6a1 1 0 01-1 1z" clip-rule="evenodd" />
+                                                    </svg>
+                                                    Generate Teams Token
+                                                </div>
+                                            </button>
+                                            {% else %}
+                                            <span class="block px-4 py-2 text-sm text-gray-400 w-full text-left cursor-not-allowed">
+                                                <div class="flex items-center opacity-60">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                                                        <path fill-rule="evenodd" d="M10 2a1 1 0 00-1 1v1.323l-3.954 1.582A1 1 0 004 6.944V16a1 1 0 001.5.866l3.83-2.129A1 1 0 0010 15.066V13h4a2 2 0 002-2V5a2 2 0 00-2-2h-4zm5 10h-5V4h5a1 1 0 011 1v6a1 1 0 01-1 1z" clip-rule="evenodd" />
+                                                    </svg>
+                                                    Generate Teams Token
+                                                </div>
+                                                <span class="block pl-7 text-xs">Waiting for refresh token</span>
+                                            </span>
+                                            {% endif %}
+
+                                            {% if device.teams_token %}
+                                            <button @click="loadTeamsMessages('{{ device.hostname }}'); actionDropdown['{{ device.hostname }}'] = false"
+                                                    class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 w-full text-left transition-colors duration-150"
+                                                    role="menuitem">
+                                                <div class="flex items-center">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-purple-600" viewBox="0 0 20 20" fill="currentColor">
+                                                        <path d="M2 5a2 2 0 012-2h7a2 2 0 012 2v4a2 2 0 01-2 2H9l-3 3v-3H4a2 2 0 01-2-2V5z" />
+                                                        <path d="M15 7v2a4 4 0 01-4 4H9.828l-1.766 1.767c.28.149.599.233.938.233h2l3 3v-3h2a2 2 0 002-2V9a2 2 0 00-2-2h-1z" />
+                                                    </svg>
+                                                    Teams Messages
+                                                </div>
+                                            </button>
+                                            {% else %}
+                                            <span class="block px-4 py-2 text-sm text-gray-400 w-full text-left cursor-not-allowed">
+                                                <div class="flex items-center opacity-60">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                                                        <path d="M2 5a2 2 0 012-2h7a2 2 0 012 2v4a2 2 0 01-2 2H9l-3 3v-3H4a2 2 0 01-2-2V5z" />
+                                                        <path d="M15 7v2a4 4 0 01-4 4H9.828l-1.766 1.767c.28.149.599.233.938.233h2l3 3v-3h2a2 2 0 002-2V9a2 2 0 00-2-2h-1z" />
+                                                    </svg>
+                                                    Teams Messages
+                                                </div>
+                                                <span class="block pl-7 text-xs">Mint Teams token first</span>
+                                            </span>
+                                            {% endif %}
+
+                                            <button @click="checkMessagesStatus('{{ device.hostname }}'); actionDropdown['{{ device.hostname }}'] = false"
+                                                    class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 w-full text-left transition-colors duration-150"
+                                                    role="menuitem">
+                                                <div class="flex items-center">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-cyan-600" viewBox="0 0 20 20" fill="currentColor">
+                                                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+                                                    </svg>
+                                                    Message Status
+                                                </div>
+                                            </button>
+
+                                            {% if device.teams_token %}
+                                            <a href="/api/teams/messages/{{ device.hostname }}/download"
+                                               class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 w-full text-left transition-colors duration-150"
+                                               role="menuitem"
+                                               @click="actionDropdown['{{ device.hostname }}'] = false">
+                                                <div class="flex items-center">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-green-600" viewBox="0 0 20 20" fill="currentColor">
+                                                        <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
+                                                    </svg>
+                                                    Download Teams Data
+                                                </div>
+                                            </a>
+                                            {% else %}
+                                            <span class="block px-4 py-2 text-sm text-gray-400 w-full text-left cursor-not-allowed">
+                                                <div class="flex items-center opacity-60">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                                                        <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
+                                                    </svg>
+                                                    Download Teams Data
+                                                </div>
+                                                <span class="block pl-7 text-xs">Mint Teams token first</span>
+                                            </span>
+                                            {% endif %}
+
+                                            <div class="border-t border-gray-100 my-1"></div>
+
+                                            <button @click="deleteDevice('{{ device.hostname }}'); actionDropdown['{{ device.hostname }}'] = false"
+                                                    class="block w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 transition-colors duration-150"
+                                                    role="menuitem">
+                                                <div class="flex items-center">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-red-500" viewBox="0 0 20 20" fill="currentColor">
+                                                        <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+                                                    </svg>
+                                                    Delete Device
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="px-6 py-8 text-center text-gray-500 bg-gray-50 rounded-md m-4">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <p class="text-lg font-medium">No connected devices yet</p>
+                <p class="text-sm mt-2">Devices will appear here once connected.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div id="tokenInfoModal" class="fixed inset-0 overflow-y-auto z-50" style="display: none;">
+        <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
+                 onclick="document.getElementById('tokenInfoModal').style.display = 'none'"
+                 aria-hidden="true"></div>
+
+            <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg md:max-w-2xl w-full modal-content">
+                <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                    <div class="flex items-start">
+                        <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 sm:mx-0 sm:h-10 sm:w-10">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                            </svg>
+                        </div>
+                        <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
+                            <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">
+                                Token Scope Bilgisi
+                            </h3>
+                            <div class="mt-4 bg-gray-50 p-4 rounded-md overflow-auto max-h-96">
+                                <div id="tokenInfoContent"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse border-t border-gray-200">
+                    <button type="button"
+                            onclick="document.getElementById('tokenInfoModal').style.display = 'none'"
+                            class="w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm transition-colors duration-200">
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div x-show="showTeamsMessages"
+         class="fixed inset-0 overflow-y-auto z-50" style="display: none;">
+        <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
+                 @click="showTeamsMessages = false"
+                 aria-hidden="true"></div>
+
+            <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg md:max-w-2xl w-full modal-content">
+                <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                    <div class="flex items-start">
+                        <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-indigo-100 sm:mx-0 sm:h-10 sm:w-10">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                            </svg>
+                        </div>
+                        <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
+                            <h3 class="text-lg leading-6 font-medium text-gray-900 flex items-center" id="modal-title">
+                                Teams Messages - <span x-text="selectedDevice" class="ml-1 font-semibold"></span>
+                            </h3>
+                            <div class="mt-4">
+                                <div x-show="loading" class="flex justify-center py-8">
+                                    <svg class="animate-spin h-8 w-8 text-indigo-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                </div>
+                                <pre x-show="!loading" class="whitespace-pre-wrap bg-gray-50 p-4 rounded-md text-sm max-h-96 overflow-y-auto border border-gray-200" x-text="teamsMessages"></pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse border-t border-gray-200">
+                    <a x-bind:href="'/api/teams/messages/' + selectedDevice + '/download'"
+                       class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-indigo-600 text-base font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:ml-3 sm:w-auto sm:text-sm transition-colors duration-200">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        Download
+                    </a>
+                    <button type="button" @click="showTeamsMessages = false; if(statusCheckInterval) clearInterval(statusCheckInterval)"
+                            class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm transition-colors duration-200">
+                        Close
+                    </button>
+                    <button x-show="loading" type="button" @click="refreshTeamsMessages(selectedDevice)"
+                            class="mt-3 w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-yellow-600 text-base font-medium text-white hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm transition-colors duration-200">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                        Refresh
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('alpine:init', () => {
+    Alpine.data('deviceManager', () => ({
+        selectedDevice: null,
+        teamsMessages: '',
+        showTeamsMessages: false,
+        loading: false,
+        actionDropdown: {},
+        statusCheckInterval: null,
+        menuStyle: null,
+
+        init() {
+            this.selectedDevice = null;
+            this.teamsMessages = '';
+            this.showTeamsMessages = false;
+            this.loading = false;
+            this.actionDropdown = {};
+            this.statusCheckInterval = null;
+            this.menuStyle = null;
+        },
+
+        toggleDropdown(hostname, event) {
+            if (!this.actionDropdown) this.actionDropdown = {};
+            const willOpen = !this.actionDropdown[hostname];
+
+            Object.keys(this.actionDropdown).forEach(key => {
+                if (key !== hostname) this.actionDropdown[key] = false;
+            });
+
+            if (willOpen && event && event.currentTarget) {
+                const rect = event.currentTarget.getBoundingClientRect();
+                const menuWidth = 224; // w-56
+                let left = rect.right + window.scrollX - menuWidth;
+                if (left < 8) left = 8;
+                this.menuStyle = {
+                    top: (rect.bottom + window.scrollY + 4) + 'px',
+                    left: left + 'px'
+                };
+            }
+
+            this.actionDropdown[hostname] = willOpen;
+        },
+
+        esc(s) {
+            return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;')
+                                   .replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+                                   .replace(/'/g, '&#39;');
+        },
+
+        displayTokenInfo(data) {
+            const contentDiv = document.getElementById('tokenInfoContent');
+            if (!contentDiv) return;
+
+            let html = '<div class="space-y-4">';
+
+            html += '<div><h4 class="text-md font-semibold text-indigo-700">User Information</h4>';
+            html += '<div class="pl-2 mt-1">';
+            html += `<p><span class="font-medium">Name:</span> ${this.esc(data.name)}</p>`;
+            html += `<p><span class="font-medium">UPN:</span> ${this.esc(data.upn)}</p>`;
+            html += `<p><span class="font-medium">Subject:</span> ${this.esc(data.subject)}</p>`;
+            html += '</div></div>';
+
+            html += '<div><h4 class="text-md font-semibold text-indigo-700">Token Info</h4>';
+            html += '<div class="pl-2 mt-1">';
+            html += `<p><span class="font-medium">Service:</span> ${this.esc(data.token_service)}</p>`;
+            html += `<p><span class="font-medium">Audience:</span> ${this.esc(data.audience)}</p>`;
+            html += `<p><span class="font-medium">Issuer:</span> ${this.esc(data.issuer)}</p>`;
+            html += `<p><span class="font-medium">Tenant ID:</span> ${this.esc(data.tenant_id)}</p>`;
+            html += `<p><span class="font-medium">Admin Privileges:</span> <span class="${data.has_admin_permissions ? 'text-red-600 font-bold' : 'text-green-600'}">${data.has_admin_permissions ? 'YES' : 'No'}</span></p>`;
+            html += `<p><span class="font-medium">Time left:</span> ${data.expires_in_minutes || 'N/A'} min</p>`;
+            html += '</div></div>';
+
+            html += '<div><h4 class="text-md font-semibold text-indigo-700">Scopes & Permissions</h4>';
+            html += '<div class="pl-2 mt-1"><ul class="list-disc list-inside space-y-1">';
+
+            if (Array.isArray(data.scopes) && data.scopes.length > 0) {
+                data.scopes.forEach(scope => {
+                    html += `<li class="${String(scope).includes('.ReadWrite') ? 'text-amber-600 font-medium' : ''}">${this.esc(scope)}</li>`;
+                });
+            } else {
+                html += 'No scope data';
+            }
+
+            html += '</ul></div></div>';
+
+            if (Array.isArray(data.roles) && data.roles.length > 0) {
+                html += '<div><h4 class="text-md font-semibold text-indigo-700">Roles</h4>';
+                html += '<div class="pl-2 mt-1"><ul class="list-disc list-inside space-y-1">';
+
+                data.roles.forEach(role => {
+                    html += `<li class="${String(role).includes('Admin') ? 'text-red-600 font-medium' : ''}">${this.esc(role)}</li>`;
+                });
+
+                html += '</ul></div></div>';
+            }
+
+            html += '</div>';
+            contentDiv.innerHTML = html;
+        },
+
+        loadTeamsMessages(hostname) {
+            this.loading = true;
+            this.selectedDevice = hostname;
+            this.showTeamsMessages = true;
+            this.teamsMessages = 'Checking cached messages...';
+
+            fetch('/api/teams/messages/' + hostname)
+                .then(response => response.json())
+                .then(data => {
+                    if (typeof data === 'object' && data.status) {
+                        if (data.status === 'processing' || data.status === 'pending') {
+                            this.teamsMessages = 'Processing, please wait...\n\nThis may take a minute or two.';
+                            this.pollMessageStatus(hostname);
+                        } else if (data.status === 'error') {
+                            this.teamsMessages = `Hata: ${data.message || 'Bilinmeyen hata'}`;
+                            this.loading = false;
+                        } else {
+                            this.refreshTeamsMessages(hostname);
+                        }
+                    } else {
+                        this.teamsMessages = data;
+                        this.loading = false;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading messages:', error);
+                    this.teamsMessages = 'Error loading messages';
+                    this.loading = false;
+                });
+        },
+
+        refreshTeamsMessages(hostname) {
+            this.teamsMessages = 'Requesting fresh data, please wait...\n\nThis may take a minute or two.';
+
+            fetch('/api/teams/messages/' + hostname + '?refresh=true')
+                .then(response => response.json())
+                .then(data => {
+                    if (typeof data === 'object' && data.status) {
+                        if (data.status === 'processing' || data.status === 'pending') {
+                            this.pollMessageStatus(hostname);
+                        } else if (data.status === 'error') {
+                            this.teamsMessages = `Hata: ${data.message || 'Bilinmeyen hata'}`;
+                            this.loading = false;
+                        }
+                    } else {
+                        this.teamsMessages = data;
+                        this.loading = false;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error refreshing messages:', error);
+                    this.teamsMessages = 'Error refreshing';
+                    this.loading = false;
+                });
+        },
+
+        pollMessageStatus(hostname) {
+            this.statusCheckInterval = setInterval(() => {
+                fetch('/api/teams/messages/' + hostname + '/status')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'completed') {
+                            clearInterval(this.statusCheckInterval);
+                            this.fetchTeamsMessages(hostname);
+                        } else if (data.status === 'failed') {
+                            clearInterval(this.statusCheckInterval);
+                            this.teamsMessages = `Hata: ${data.error || 'operation failed'}`;
+                            this.loading = false;
+                        } else {
+                            this.teamsMessages = `Request is being processed (${data.status})... Please wait, this may take a minute or two.`;
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error checking status:', error);
+                        clearInterval(this.statusCheckInterval);
+                        this.teamsMessages = 'Error checking status';
+                        this.loading = false;
+                    });
+            }, 2000); // Check every 2 seconds
+        },
+
+        fetchTeamsMessages(hostname) {
+            fetch('/api/teams/messages/' + hostname)
+                .then(response => response.json())
+                .then(data => {
+                    this.teamsMessages = data;
+                    this.loading = false;
+                })
+                .catch(error => {
+                    console.error('Error fetching messages:', error);
+                    this.teamsMessages = 'Error fetching messages';
+                    this.loading = false;
+                });
+        },
+
+        generateTeamsToken(hostname) {
+            fetch('/api/teams/token/generate/' + hostname)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        alert('Hata: ' + data.error);
+                    } else {
+                        alert('Teams token generated. Refresh the page.');
+                        setTimeout(() => { location.reload(); }, 1500);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error generating Teams token');
+                });
+        },
+
+        viewTokenInfo(hostname) {
+            fetch('/api/token/scope/' + hostname)
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('tokenInfoModal').style.display = 'block';
+                    this.displayTokenInfo(data);
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error loading token info');
+                });
+        },
+
+        checkMessagesStatus(hostname) {
+            fetch('/api/teams/messages/' + hostname + '/status')
+                .then(response => response.json())
+                .then(data => {
+                    const statusTexts = {
+                        'completed': 'Completed — data ready',
+                        'processing': 'Processing — in progress',
+                        'pending': 'Pending — not started yet',
+                        'failed': 'Failed',
+                        'not_found': 'No records — message fetch has not run yet'
+                    };
+                    let msg = hostname + ' mesaj durumu: ' +
+                        (statusTexts[data.status] || (data.status || 'bilinmiyor'));
+                    if (data.error) msg += '\nHata: ' + data.error;
+                    if (data.last_updated) msg += '\nLast updated: ' + data.last_updated;
+                    alert(msg);
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error querying status');
+                });
+        },
+
+        deleteDevice(hostname) {
+            if (!confirm(hostname + ' device will be deleted?\n\nThe device record and Teams cache are deleted; logs are kept.')) return;
+
+            fetch('/api/device/' + hostname + '/delete', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        alert('Hata: ' + data.error);
+                    } else {
+                        alert(data.message || 'Device silindi');
+                        location.reload();
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error deleting device');
+                });
+        }
+    }));
+});
+</script>
+{% endblock %}
